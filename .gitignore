@@ -1,0 +1,36 @@
+# Node.js sõltuvused
+node_modules/
+npm-debug.log*
+yarn.lock
+package-lock.json
+
+# Environment muutujad
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# IDE ja süsteemifailid
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Build kaustad
+/dist
+/build
+/out
+/.next
+/.parcel-cache
+
+# Frontendi erandid
+/frontend/node_modules/
+frontend/.env
+
+# Backendi erandid
+/backend/node_modules/
+backend/.env
+
+# Saladused
+credentials.json
+token.json
