@@ -1,79 +1,56 @@
-import React, { useEffect, useRef, useState } from 'react';
-import WaveSurfer from 'wavesurfer.js';
+import { useRef, useEffect, useState } from 'react';
+import { useWavesurfer } from '@wavesurfer/react';
 
-const WaveSurferPlayer = ({ audioUrl }) => {
-  const waveformRef = useRef(null);
-  const wavesurfer = useRef(null);
-  const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState('');
+const WavesurferPlayer = ({ audioUrl }) => {
+  const containerRef = useRef(null);
   const [currentTime, setCurrentTime] = useState(0);
 
+  const { wavesurfer, isPlaying } = useWavesurfer({
+    container: containerRef,
+    url: audioUrl,
+    waveColor: 'rgb(200, 0, 200)',
+    progressColor: 'rgb(100, 0, 100)',
+    height: 100,
+  });
+
   useEffect(() => {
-    if (!audioUrl) return;
+    if (!wavesurfer) return;
 
-    if (wavesurfer.current) {
-      wavesurfer.current.destroy();
-    }
+    const interval = setInterval(() => {
+      setCurrentTime(wavesurfer.getCurrentTime());
+    }, 100);
 
-    wavesurfer.current = WaveSurfer.create({
-      container: waveformRef.current,
-      waveColor: '#ddd',
-      progressColor: '#ff5500',
-      cursorColor: '#ff0000',
-      barWidth: 3,
-      responsive: true,
-      height: 100,
-    });
+    return () => clearInterval(interval);
+  }, [wavesurfer]);
 
-    wavesurfer.current.load(audioUrl);
-
-    wavesurfer.current.on('ready', () => {
-      setCurrentTime(0);
-    });
-
-    wavesurfer.current.on('seek', () => {
-      setCurrentTime(wavesurfer.current.getCurrentTime());
-    });
-
-    return () => {
-      if (wavesurfer.current) {
-        wavesurfer.current.destroy();
-      }
-    };
-  }, [audioUrl]);
-
-  const handleAddComment = () => {
-    setComments([...comments, { time: currentTime, text: newComment }]);
-    setNewComment('');
+  const formatTime = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
 
   return (
     <div>
-      <div ref={waveformRef} style={{ width: '100%', marginBottom: '10px' }}></div>
-      <button onClick={() => wavesurfer.current && wavesurfer.current.playPause()}>
-        Play / Pause
-      </button>
-
-      <div>
-        <h3>Lisa kommentaar</h3>
-        <input
-          type="text"
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          placeholder="Sisesta kommentaar..."
+      <div ref={containerRef} style={{ width: '100%', marginBottom: '10px' }} />
+      <div style={{ width: '100%', height: '3px', background: '#ddd', position: 'relative' }}>
+        <div
+          style={{
+            position: 'absolute',
+            left: `${(currentTime / (wavesurfer?.getDuration() || 1)) * 100}%`,
+            top: 0,
+            bottom: 0,
+            width: '2px',
+            background: 'black',
+          }}
         />
-        <button onClick={handleAddComment}>Lisa</button>
       </div>
-
-      <ul>
-        {comments.map((comment, index) => (
-          <li key={index}>
-            <strong>{comment.time.toFixed(2)}s:</strong> {comment.text}
-          </li>
-        ))}
-      </ul>
+      <br />
+      <button onClick={() => wavesurfer && wavesurfer.playPause()}>
+        {isPlaying ? 'Pause' : 'Play'}
+      </button>
+      <p>{formatTime(currentTime)}</p>
     </div>
   );
 };
 
-export default WaveSurferPlayer;
+export default WavesurferPlayer;

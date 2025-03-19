@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import WaveSurferPlayer from './WaveSurferPlayer';
+import WavesurferPlayer from './WaveSurferPlayer';
 
 const FileList = () => {
   const [files, setFiles] = useState([]);
@@ -28,13 +28,13 @@ const FileList = () => {
           <li key={file.id}>
             {file.name}
             <br />
-            <button onClick={() => setSelectedAudioUrl(`https://drive.google.com/uc?id=${file.id}`)}>
+            <button onClick={() => setSelectedAudioUrl(`http://localhost:8080/api/proxy?id=${file.id}`)}>
               Ava
             </button>
           </li>
         ))}
       </ul>
-      {selectedAudioUrl && <WaveSurferPlayer audioUrl={selectedAudioUrl} />}
+      {selectedAudioUrl && <WavesurferPlayer audioUrl={selectedAudioUrl} />}
     </div>
   );
 };

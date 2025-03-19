@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
 const process = require('process');
@@ -70,7 +71,7 @@ async function listFiles(authClient) {
     }));
 }
 
-app.get('/api/file/:id', async (req, res) => {
+/* app.get('/api/file/:id', async (req, res) => {
   try {
     const authClient = await authorize();
     const drive = google.drive({ version: 'v3', auth: authClient });
@@ -94,7 +95,7 @@ app.get('/api/file/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to stream file' });
   }
 });
-
+ */
 app.get('/api/files', async (req, res) => {
   try {
     const authClient = await authorize();
@@ -103,6 +104,26 @@ app.get('/api/files', async (req, res) => {
   } catch (error) {
     console.error('Error fetching files:', error);
     res.status(500).json({ error: 'Failed to fetch files' });
+  }
+});
+
+app.get('/api/proxy', async (req, res) => {
+  const fileId = req.query.id;
+  if (!fileId) {
+    return res.status(400).json({ error: 'File ID is required' });
+  }
+
+  try {
+    const fileUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    const response = await axios.get(fileUrl, { responseType: 'stream' });
+
+    res.setHeader('Content-Type', response.headers['content-type'] || 'audio/mpeg');
+    res.setHeader('Content-Disposition', `inline; filename="${fileId}.mp3"`);
+
+    response.data.pipe(res);
+  } catch (error) {
+    console.error('Error fetching file:', error);
+    res.status(500).json({ error: 'Failed to fetch file' });
   }
 });
 
