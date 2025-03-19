@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
 const process = require('process');
@@ -7,12 +8,12 @@ const { authenticate } = require('@google-cloud/local-auth');
 const { google } = require('googleapis');
 
 const app = express();
-const PORT = 8080; // Muuda vastavalt vajadusele
+const PORT = 8080;
 
 app.use(cors()); // Luba CORS (vajalik Reacti päringute jaoks)
 app.use(express.json());
 
-const SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly'];
+const SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly', 'https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/drive.file'];
 const TOKEN_PATH = path.join(process.cwd(), 'token.json');
 const CREDENTIALS_PATH = path.join(process.cwd(), 'credentials.json');
 
@@ -58,11 +59,43 @@ async function listFiles(authClient) {
   const drive = google.drive({ version: 'v3', auth: authClient });
   const res = await drive.files.list({
     pageSize: 10,
-    fields: 'files(id, name)',
+    fields: 'files(id, name, mimeType)',
   });
-  return res.data.files;
+
+  return res.data.files
+    .filter(file => file.mimeType.startsWith('audio/'))
+    .map(file => ({
+      id: file.id,
+      name: file.name,
+      url: `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`
+    }));
 }
 
+/* app.get('/api/file/:id', async (req, res) => {
+  try {
+    const authClient = await authorize();
+    const drive = google.drive({ version: 'v3', auth: authClient });
+    const fileId = req.params.id;
+    const fileMetadata = await drive.files.get({ fileId, fields: 'name, mimeType' });
+
+    if (!fileMetadata.data.mimeType.startsWith('audio/')) {
+      return res.status(400).json({ error: 'Not an audio file' });
+    }
+
+    const fileStream = await drive.files.get(
+      { fileId, alt: 'media' },
+      { responseType: 'stream' }
+    );
+
+    res.setHeader('Content-Type', fileMetadata.data.mimeType);
+
+    fileStream.data.pipe(res);
+  } catch (error) {
+    console.error('Error streaming file:', error);
+    res.status(500).json({ error: 'Failed to stream file' });
+  }
+});
+ */
 app.get('/api/files', async (req, res) => {
   try {
     const authClient = await authorize();
@@ -71,6 +104,26 @@ app.get('/api/files', async (req, res) => {
   } catch (error) {
     console.error('Error fetching files:', error);
     res.status(500).json({ error: 'Failed to fetch files' });
+  }
+});
+
+app.get('/api/proxy', async (req, res) => {
+  const fileId = req.query.id;
+  if (!fileId) {
+    return res.status(400).json({ error: 'File ID is required' });
+  }
+
+  try {
+    const fileUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    const response = await axios.get(fileUrl, { responseType: 'stream' });
+
+    res.setHeader('Content-Type', response.headers['content-type'] || 'audio/mpeg');
+    res.setHeader('Content-Disposition', `inline; filename="${fileId}.mp3"`);
+
+    response.data.pipe(res);
+  } catch (error) {
+    console.error('Error fetching file:', error);
+    res.status(500).json({ error: 'Failed to fetch file' });
   }
 });
 
