@@ -1,9 +1,11 @@
 import { useRef, useEffect, useState } from 'react';
 import { useWavesurfer } from '@wavesurfer/react';
+import CommentSection from './CommentSection'; 
 
 const WavesurferPlayer = ({ audioUrl }) => {
   const containerRef = useRef(null);
   const [currentTime, setCurrentTime] = useState(0);
+  const [comments, setComments] = useState([]);
 
   const { wavesurfer, isPlaying } = useWavesurfer({
     container: containerRef,
@@ -29,6 +31,10 @@ const WavesurferPlayer = ({ audioUrl }) => {
     return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
   };
 
+  const handleAddComment = (comment) => {
+    setComments([...comments, comment]);
+  };
+
   return (
     <div>
       <div ref={containerRef} style={{ width: '100%', marginBottom: '10px' }} />
@@ -49,6 +55,11 @@ const WavesurferPlayer = ({ audioUrl }) => {
         {isPlaying ? 'Pause' : 'Play'}
       </button>
       <p>{formatTime(currentTime)}</p>
+
+      <CommentSection 
+      onAddComment={handleAddComment}
+      currentTime={formatTime(currentTime)} 
+      />
     </div>
   );
 };
