@@ -1,27 +1,63 @@
-import { useRef, useEffect, useState } from 'react';
-import { useWavesurfer } from '@wavesurfer/react';
+import { useEffect, useRef, useState } from 'react';
+import WaveSurfer from 'wavesurfer.js';
 
 const WavesurferPlayer = ({ audioUrl }) => {
   const containerRef = useRef(null);
+  const wavesurferRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
 
-  const { wavesurfer, isPlaying } = useWavesurfer({
-    container: containerRef,
-    url: audioUrl,
-    waveColor: 'rgb(200, 0, 200)',
-    progressColor: 'rgb(100, 0, 100)',
-    height: 100,
-  });
-
   useEffect(() => {
-    if (!wavesurfer) return;
+    if (!audioUrl || !containerRef.current) return;
 
-    const interval = setInterval(() => {
-      setCurrentTime(wavesurfer.getCurrentTime());
-    }, 100);
+    if (wavesurferRef.current) {
+      wavesurferRef.current.destroy();
+    }
 
-    return () => clearInterval(interval);
-  }, [wavesurfer]);
+    const ws = WaveSurfer.create({
+      container: containerRef.current,
+      url: audioUrl,
+      waveColor: [
+        "#FFFFFF",
+        "#717171",
+        "#515151",
+        "#B3D3B7",
+        "#88A38B",
+      ],
+      progressColor: [
+        "green",
+        "#40534C",
+        "#61BEBE",
+        "#1A3636",
+        "#316464",
+      ],
+      barWidth: 1.5,
+      barGap: 2,
+      barRadius: 3,
+      height: 100,
+    });
+
+    wavesurferRef.current = ws;
+
+    ws.on('audioprocess', () => {
+      setCurrentTime(ws.getCurrentTime());
+    });
+
+    ws.on('finish', () => {
+      setIsPlaying(false);
+    });
+
+    return () => {
+      ws.destroy();
+    };
+  }, [audioUrl]);
+
+  const togglePlay = () => {
+    const ws = wavesurferRef.current;
+    if (!ws) return;
+    ws.playPause();
+    setIsPlaying(ws.isPlaying());
+  };
 
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
@@ -32,20 +68,7 @@ const WavesurferPlayer = ({ audioUrl }) => {
   return (
     <div>
       <div ref={containerRef} style={{ width: '100%', marginBottom: '10px' }} />
-      <div style={{ width: '100%', height: '3px', background: '#ddd', position: 'relative' }}>
-        <div
-          style={{
-            position: 'absolute',
-            left: `${(currentTime / (wavesurfer?.getDuration() || 1)) * 100}%`,
-            top: 0,
-            bottom: 0,
-            width: '2px',
-            background: 'black',
-          }}
-        />
-      </div>
-      <br />
-      <button onClick={() => wavesurfer && wavesurfer.playPause()}>
+      <button onClick={togglePlay}>
         {isPlaying ? 'Pause' : 'Play'}
       </button>
       <p>{formatTime(currentTime)}</p>

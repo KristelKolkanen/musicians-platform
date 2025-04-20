@@ -10,10 +10,11 @@ const { google } = require('googleapis');
 const app = express();
 const PORT = 8080;
 
-app.use(cors()); // Luba CORS (vajalik Reacti päringute jaoks)
+app.use(cors());
 app.use(express.json());
 
-const SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly', 'https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/drive.file'];
+const SCOPES = ['https://www.googleapis.com/auth/drive'];
+//  'https://www.googleapis.com/auth/drive.metadata.readonly', 'https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/drive.file'
 const TOKEN_PATH = path.join(process.cwd(), 'token.json');
 const CREDENTIALS_PATH = path.join(process.cwd(), 'credentials.json');
 
@@ -71,31 +72,6 @@ async function listFiles(authClient) {
     }));
 }
 
-/* app.get('/api/file/:id', async (req, res) => {
-  try {
-    const authClient = await authorize();
-    const drive = google.drive({ version: 'v3', auth: authClient });
-    const fileId = req.params.id;
-    const fileMetadata = await drive.files.get({ fileId, fields: 'name, mimeType' });
-
-    if (!fileMetadata.data.mimeType.startsWith('audio/')) {
-      return res.status(400).json({ error: 'Not an audio file' });
-    }
-
-    const fileStream = await drive.files.get(
-      { fileId, alt: 'media' },
-      { responseType: 'stream' }
-    );
-
-    res.setHeader('Content-Type', fileMetadata.data.mimeType);
-
-    fileStream.data.pipe(res);
-  } catch (error) {
-    console.error('Error streaming file:', error);
-    res.status(500).json({ error: 'Failed to stream file' });
-  }
-});
- */
 app.get('/api/files', async (req, res) => {
   try {
     const authClient = await authorize();
@@ -114,15 +90,33 @@ app.get('/api/proxy', async (req, res) => {
   }
 
   try {
-    const fileUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-    const response = await axios.get(fileUrl, { responseType: 'stream' });
+    const authClient = await authorize();
+    const drive = google.drive({ version: 'v3', auth: authClient });
 
-    res.setHeader('Content-Type', response.headers['content-type'] || 'audio/mpeg');
+    const file = await drive.files.get(
+      {
+        fileId,
+        alt: 'media',
+        supportsAllDrives: true,
+        acknowledgeAbuse: true
+      },
+      {
+        responseType: 'stream'
+      }
+    );
+
+    res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Content-Disposition', `inline; filename="${fileId}.mp3"`);
 
-    response.data.pipe(res);
+    file.data.pipe(res);
   } catch (error) {
-    console.error('Error fetching file:', error);
+    console.error('Error fetching file via Drive API:');
+    if (error.response) {
+      console.error('Status:', error.response.status);
+      console.error('Data:', error.response.data);
+    } else {
+      console.error(error);
+    }
     res.status(500).json({ error: 'Failed to fetch file' });
   }
 });
